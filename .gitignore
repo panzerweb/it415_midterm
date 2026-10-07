@@ -14,4 +14,3 @@ coverage/
 *.tsbuildinfo
 pytest-cache-files-*/
 *.log
-
