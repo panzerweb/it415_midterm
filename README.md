@@ -134,9 +134,3 @@ npm.cmd run test:e2e
 Playwright starts both services automatically and uses a separate ignored `backend/e2e.db`. Its HTML report is in `frontend/playwright-report`. Backend tests use temporary SQLite databases. An optional `KIOSK_PYTHON` environment variable selects a Python executable instead of the root `.venv`.
 
 To inspect the production build locally, keep the backend running and use `npm.cmd run preview` from `frontend`, then open the URL it prints. The preview server also proxies `/api` to port 8000.
-
-## Group workflow
-
-The local repository contains 12 commits, including the initial setup, with four commits assigned to each supplied contributor identity. Three retained feature branches were integrated into `main` using fast-forward merges.
-
-This history was reconstructed from the existing application files at the user's request, with a new API error-handling fix and regression tests. Author identities and timestamps are assigned metadata; they do not establish who originally wrote the imported files or when that work happened. GitHub publishing, reviews, and instructor sign-off remain the group's responsibility.
