@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useCheckoutStore } from './checkout'
 import { parseCash } from '../money'
+import { demoQrPayload } from '../qr'
 import type { Product, Receipt } from '../types'
 
 const coffee: Product = {
@@ -77,6 +78,16 @@ describe('cart', () => {
     expect(store.paymentMethod).toBeNull()
     expect(store.cashInput).toBe('')
   })
+  it('clears the order and payment state when requested', () => {
+    const store = sampleOrder()
+    store.chooseMethod('cash')
+    store.setCash('200')
+    store.clearOrder()
+    expect(store.cart).toEqual([])
+    expect(store.total).toBe(0)
+    expect(store.paymentMethod).toBeNull()
+    expect(store.cashInput).toBe('')
+  })
 })
 
 describe('cash parsing and keypad', () => {
@@ -108,6 +119,39 @@ describe('cash parsing and keypad', () => {
 })
 
 describe('checkout', () => {
+  it('uses the scannable demo ID for QR submission and refreshes it for a changed order', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+    const store = sampleOrder()
+    store.chooseMethod('qr')
+    const firstId = store.demoOrderId!
+    expect(firstId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(demoQrPayload(firstId, store.total)).toContain('Amount: PHP 175.00')
+    expect(demoQrPayload(firstId, store.total)).toContain('No payment is requested or verified.')
+    expect(await store.pay()).toBe(false)
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).request_id).toBe(firstId)
+    store.clearOrder()
+    expect(store.demoOrderId).toBe(firstId)
+    expect(store.total).toBe(17500)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(receipt))))
+    expect(await store.pay()).toBe(true)
+    store.newTransaction()
+    store.add(coffee)
+    store.chooseMethod('qr')
+    expect(store.demoOrderId).not.toBe(firstId)
+    expect(demoQrPayload(store.demoOrderId!, store.total)).toContain('Amount: PHP 45.00')
+  })
+  it('regenerates a QR demo ID when the cart changes before checkout', () => {
+    const store = sampleOrder()
+    store.chooseMethod('qr')
+    const original = store.demoOrderId
+    store.adjust(1, 1)
+    expect(store.demoOrderId).toBeNull()
+    expect(store.paymentMethod).toBeNull()
+    store.chooseMethod('qr')
+    expect(store.demoOrderId).not.toBe(original)
+    expect(demoQrPayload(store.demoOrderId!, store.total)).toContain('Amount: PHP 220.00')
+  })
   it('rejects invalid cash before submitting and shows shortfall', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)

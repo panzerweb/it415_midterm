@@ -1,12 +1,43 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import QRCode from 'qrcode'
 import { useCheckoutStore } from '../stores/checkout'
 import { money } from '../money'
+import { demoQrPayload } from '../qr'
 import Icon from '../components/Icon.vue'
 import type { PaymentMethod } from '../types'
 
 const store = useCheckoutStore()
 const router = useRouter()
+const qrImage = ref('')
+const qrError = ref('')
+const qrPayload = computed(() =>
+  store.paymentMethod === 'qr' && store.demoOrderId
+    ? demoQrPayload(store.demoOrderId, store.total)
+    : '',
+)
+watch(
+  qrPayload,
+  async (payload) => {
+    qrImage.value = ''
+    qrError.value = ''
+    if (!payload) return
+    try {
+      const image = await QRCode.toDataURL(payload, {
+        width: 260,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#143c69', light: '#ffffff' },
+      })
+      if (qrPayload.value === payload) qrImage.value = image
+    } catch {
+      if (qrPayload.value === payload)
+        qrError.value = 'Could not create the demo QR. Choose QR again to retry.'
+    }
+  },
+  { immediate: true },
+)
 const methods: { id: PaymentMethod; title: string; description: string; icon: string }[] = [
   {
     id: 'cash',
@@ -17,7 +48,7 @@ const methods: { id: PaymentMethod; title: string; description: string; icon: st
   {
     id: 'qr',
     title: 'QR payment',
-    description: 'A quick scan with your favorite e-wallet or banking app.',
+    description: 'Scan demo order details with your phone camera.',
     icon: 'qr',
   },
   {
@@ -170,17 +201,17 @@ function inputCash(event: Event) {
           </template>
           <template v-else-if="store.paymentMethod === 'qr'">
             <ol class="payment-instructions">
-              <li>Scan using a supported payment app.</li>
+              <li>Scan with your phone camera or any QR reader.</li>
               <li>
                 Check the amount is
                 <strong>{{ money(store.total) }}</strong>
                 .
               </li>
-              <li>Tap Confirm payment to simulate approval.</li>
+              <li>Tap Simulate payment to complete this demo order.</li>
             </ol>
             <div class="simulation-note">
               <Icon name="info" :size="19" />
-              Simulation only · no actual scan needed.
+              Order details only · no bank or e-wallet payment is made.
             </div>
           </template>
           <template v-else>
@@ -211,12 +242,20 @@ function inputCash(event: Event) {
           </div>
         </div>
         <div v-else-if="store.paymentMethod === 'qr'" class="qr-panel">
-          <div class="qr-placeholder">
-            <Icon name="qr" :size="130" />
-            <span>QR PLACEHOLDER</span>
+          <div class="qr-code-frame">
+            <img
+              v-if="qrImage"
+              :src="qrImage"
+              alt="Scannable demo order QR code"
+              width="260"
+              height="260"
+            />
+            <span v-else-if="qrError" role="alert">{{ qrError }}</span>
+            <span v-else role="status">Generating demo QR…</span>
           </div>
-          <span class="simulation-pill">SIMULATED PAYMENT</span>
-          <p>Confirm below to complete your order.</p>
+          <span class="simulation-pill">DEMO ORDER · NO CHARGE</span>
+          <p v-if="store.demoOrderId" class="qr-order-id">Order ID: {{ store.demoOrderId }}</p>
+          <p>Scan to view the amount and demo order ID.</p>
         </div>
         <div v-else class="card-panel">
           <div class="demo-card">
@@ -252,7 +291,11 @@ function inputCash(event: Event) {
           <Icon name="back" />
           Change payment method
         </button>
-        <button class="button primary" :disabled="store.processing" @click="pay">
+        <button
+          class="button primary"
+          :disabled="store.processing || (store.paymentMethod === 'qr' && !qrImage)"
+          @click="pay"
+        >
           <span v-if="store.processing" class="spinner"></span>
           {{
             store.processing
@@ -262,7 +305,7 @@ function inputCash(event: Event) {
                 : store.paymentMethod === 'cash'
                   ? 'Pay now'
                   : store.paymentMethod === 'qr'
-                    ? 'Confirm payment'
+                    ? 'Simulate payment'
                     : 'Process payment'
           }}
           <Icon v-if="!store.processing" name="arrow" />
