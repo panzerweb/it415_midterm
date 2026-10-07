@@ -23,8 +23,11 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     )
   }
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}))
+    const error: unknown = await response.json().catch(() => null)
     const message =
+      error !== null &&
+      typeof error === 'object' &&
+      'detail' in error &&
       typeof error.detail === 'string'
         ? error.detail
         : 'Please check your order and payment details.'
