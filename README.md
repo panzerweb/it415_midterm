@@ -1,10 +1,10 @@
 # Campus Store POS Kiosk
 
-A touchscreen campus-store checkout built with Vue 3, TypeScript, Vue Router, Pinia, FastAPI, SQLModel, and SQLite. The design follows the supplied navy/orange sample and uses the six example products and prices.
+A touchscreen campus-store checkout built with Vue 3, TypeScript, Vue Router, Pinia, FastAPI, SQLModel, and SQLite. Its light blue theme keeps the supplied sample's product-grid and cart layout, with the six example products and prices.
 
 **Flow:** Select items → Review order → Choose payment → Process payment → Success → Receipt → New transaction.
 
-All payment methods are demonstrations. QR and card payments do not contact a bank, charge money, or collect card details.
+All payment methods are demonstrations. QR and card payments do not contact a bank, charge money, or collect card details. The QR code is genuinely scannable but contains demo order details only.
 
 ## Run locally on Windows
 
@@ -41,11 +41,11 @@ If Python dependency installation reports a Windows temporary-folder permission 
 ## Using the kiosk
 
 1. Tap product cards to add items; use category filters if desired.
-2. Adjust quantities with +/−, or remove an item. Decreasing from one removes the item. The maximum is 99 of each product.
+2. Adjust quantities with +/−, or remove an item. Decreasing from one removes the item. The maximum is 99 of each product. **Clear order** asks for confirmation before removing all items and payment inputs.
 3. Review the order and go back to make changes if needed.
 4. Choose Cash, QR Payment, or Credit / Debit Card.
-5. For cash, use the keypad, keyboard, Exact, or a quick amount. Invalid or insufficient cash stays on the payment screen with an explanation. For QR/card, use the simulation confirmation button.
-6. View the successful payment and digital receipt.
+5. For cash, use the keypad, keyboard, Exact, or a quick amount. Invalid or insufficient cash stays on the payment screen with an explanation. For QR, scan the code with a regular phone camera or QR reader to view the PHP amount and demo order ID, then choose **Simulate payment**. The code cannot be used to pay through a bank or e-wallet. For card, use the simulation button.
+6. View the successful payment and digital receipt. **Print receipt** opens the browser print dialog, where you can choose a printer or Save as PDF. The print layout contains only the receipt.
 7. Choose **New transaction** to clear the current customer’s order, payment inputs, and receipt.
 
 The cart lives in memory. Refreshing the browser starts a fresh kiosk session, while completed transactions remain in SQLite. During a network failure, retry the existing payment before refreshing: the retry safely checks the original request rather than creating another sale.
@@ -104,7 +104,7 @@ Use `qr` or `card` and omit `amount_paid_centavos` for the simulations. Each new
 - A single database transaction saves the purchase and its line items. Receipt lines snapshot the purchased name and price.
 - Receipt timestamps are stored as UTC and displayed in Asia/Manila time (PHT).
 - A timeout or server failure retains the exact request for retry and temporarily locks order edits. Double-tapping a payment button cannot start parallel submissions.
-- The demo has no login, inventory, admin UI, reports, discounts, real payment gateway, or receipt printing. Bind it to localhost as documented.
+- The demo has no login, inventory, admin UI, reports, discounts, real payment gateway, or dedicated thermal-printer connection. Bind it to localhost as documented.
 
 ## Tests and build
 

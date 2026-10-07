@@ -1,4 +1,21 @@
 import { test, expect, type Page } from '@playwright/test'
+import jsQR from 'jsqr'
+
+async function scannedQr(page: Page) {
+  const pixels = await page.locator('.qr-code-frame img').evaluate((image) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = (image as HTMLImageElement).naturalWidth
+    canvas.height = (image as HTMLImageElement).naturalHeight
+    const context = canvas.getContext('2d')!
+    context.drawImage(image as HTMLImageElement, 0, 0)
+    return {
+      width: canvas.width,
+      height: canvas.height,
+      data: Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data),
+    }
+  })
+  return jsQR(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height)?.data
+}
 
 async function order(page: Page) {
   await page.goto('/')
@@ -52,6 +69,18 @@ test('cash journey, quantity changes, review back, invalid values, receipt and r
   await expect(page.locator('.receipt-paper')).toContainText('₱200.00')
   await expect(page.locator('.receipt-paper')).toContainText('₱25.00')
   await expect(page.locator('.receipt-paper')).toContainText('Cash')
+  await page.evaluate(() => {
+    window.print = () => {
+      document.body.dataset.printCalled = 'yes'
+    }
+  })
+  await page.getByRole('button', { name: 'Print receipt' }).click()
+  await expect(page.locator('body')).toHaveAttribute('data-print-called', 'yes')
+  await page.emulateMedia({ media: 'print' })
+  await expect(page.locator('.site-header')).toBeHidden()
+  await expect(page.locator('.receipt-message')).toBeHidden()
+  await expect(page.locator('.receipt-paper')).toBeVisible()
+  await page.emulateMedia({ media: 'screen' })
   await page.screenshot({ path: test.info().outputPath('receipt-desktop.png'), fullPage: true })
   await page.getByRole('button', { name: 'New transaction' }).click()
   await expect(page.getByTestId('cart-total')).toHaveText('₱0.00')
@@ -65,14 +94,19 @@ for (const method of ['qr', 'card'] as const) {
     await payment(page)
     await page
       .getByRole('button', {
-        name: method === 'qr' ? /^QR payment A quick/ : /^Credit \/ debit card Tap/,
+        name: method === 'qr' ? /^QR payment Scan demo/ : /^Credit \/ debit card Tap/,
       })
       .click()
-    if (method === 'qr')
-      await expect(page.getByText('QR PLACEHOLDER', { exact: true })).toBeVisible()
+    if (method === 'qr') {
+      await expect(page.locator('.qr-code-frame img')).toBeVisible()
+      const id = (await page.locator('.qr-order-id').innerText()).replace('Order ID: ', '')
+      expect(await scannedQr(page)).toContain(`Order ID: ${id}`)
+      expect(await scannedQr(page)).toContain('Amount: PHP 175.00')
+      expect(await scannedQr(page)).toContain('No payment is requested or verified.')
+    }
     await page
       .getByRole('button', {
-        name: method === 'qr' ? 'Confirm payment' : 'Process payment',
+        name: method === 'qr' ? 'Simulate payment' : 'Process payment',
         exact: true,
       })
       .click()
@@ -87,6 +121,18 @@ for (const method of ['qr', 'card'] as const) {
     await expect(page.locator('.receipt-total')).toContainText('₱175.00')
   })
 }
+
+test('clear order requires confirmation and resets the cart', async ({ page }) => {
+  await order(page)
+  await page.getByRole('button', { name: 'Clear order', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Keep order' }).click()
+  await expect(page.getByTestId('cart-total')).toHaveText('₱175.00')
+  await page.getByRole('button', { name: 'Clear order', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Clear order' }).click()
+  await expect(page.getByTestId('cart-total')).toHaveText('₱0.00')
+  await expect(page.getByRole('button', { name: 'Review order', exact: true })).toBeDisabled()
+})
 
 test('exact cash payment', async ({ page }) => {
   await payment(page)

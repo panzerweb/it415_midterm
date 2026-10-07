@@ -17,6 +17,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
   const processing = ref(false)
   const receipt = ref<Receipt | null>(null)
   const pendingAttempt = ref<CheckoutRequest | null>(null)
+  const demoOrderId = ref<string | null>(null)
   const total = computed(() =>
     cart.value.reduce((sum, line) => sum + line.product.price_centavos * line.quantity, 0),
   )
@@ -46,6 +47,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     cashInput.value = ''
     paymentError.value = ''
     pendingAttempt.value = null
+    demoOrderId.value = null
   }
 
   function add(product: Product) {
@@ -90,6 +92,15 @@ export const useCheckoutStore = defineStore('checkout', () => {
     if (locked.value) return
     clearPayment()
     paymentMethod.value = method
+    if (method === 'qr') demoOrderId.value = crypto.randomUUID()
+  }
+
+  function clearOrder() {
+    if (locked.value || receipt.value) return
+    cart.value = []
+    category.value = 'All'
+    clearPayment()
+    notice.value = 'Order cleared.'
   }
 
   function setCash(value: string) {
@@ -127,7 +138,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
         }
       }
       pendingAttempt.value = {
-        request_id: crypto.randomUUID(),
+        request_id: paymentMethod.value === 'qr' ? demoOrderId.value! : crypto.randomUUID(),
         items: cart.value.map((line) => ({ product_id: line.product.id, quantity: line.quantity })),
         payment_method: paymentMethod.value,
         ...(paymentMethod.value === 'cash' ? { amount_paid_centavos: cashAmount.value! } : {}),
@@ -179,6 +190,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     processing,
     receipt,
     pendingAttempt,
+    demoOrderId,
     total,
     itemCount,
     cashAmount,
@@ -189,6 +201,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     adjust,
     remove,
     chooseMethod,
+    clearOrder,
     setCash,
     keypress,
     pay,

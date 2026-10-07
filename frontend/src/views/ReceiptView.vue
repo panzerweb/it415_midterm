@@ -10,6 +10,9 @@ function startNew() {
   store.newTransaction()
   router.replace('/')
 }
+function printReceipt() {
+  window.print()
+}
 </script>
 
 <template>
@@ -87,10 +90,16 @@ function startNew() {
         Keep this for your records. Ready for the next customer? Start a new transaction to clear
         your order and payment details.
       </p>
-      <button class="button primary wide" @click="startNew">
-        New transaction
-        <Icon name="arrow" />
-      </button>
+      <div class="receipt-actions">
+        <button class="button secondary wide" @click="printReceipt">
+          <Icon name="receipt" />
+          Print receipt
+        </button>
+        <button class="button primary wide" @click="startNew">
+          New transaction
+          <Icon name="arrow" />
+        </button>
+      </div>
       <div class="receipt-reset-note">
         <Icon name="info" :size="21" />
         <span>Your order and payment details will be cleared from this screen.</span>

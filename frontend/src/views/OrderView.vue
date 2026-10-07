@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCheckoutStore } from '../stores/checkout'
 import { money } from '../money'
 import Icon from '../components/Icon.vue'
@@ -12,6 +12,11 @@ const visibleProducts = computed(() =>
   ),
 )
 const quantity = (id: number) => store.cart.find((line) => line.product.id === id)?.quantity ?? 0
+const clearDialog = ref<HTMLDialogElement | null>(null)
+function confirmClear() {
+  store.clearOrder()
+  clearDialog.value?.close()
+}
 </script>
 
 <template>
@@ -141,6 +146,15 @@ const quantity = (id: number) => store.cart.find((line) => line.product.id === i
         </article>
       </div>
       <div class="cart-checkout">
+        <button
+          v-if="store.cart.length"
+          class="clear-order-button"
+          :disabled="store.locked"
+          @click="clearDialog?.showModal()"
+        >
+          <Icon name="trash" :size="18" />
+          Clear order
+        </button>
         <div class="total-row">
           <span>
             Total amount
@@ -162,4 +176,12 @@ const quantity = (id: number) => store.cart.find((line) => line.product.id === i
       </div>
     </aside>
   </div>
+  <dialog ref="clearDialog" class="confirm-dialog" aria-labelledby="clear-title">
+    <h2 id="clear-title">Clear this order?</h2>
+    <p>All items and payment inputs for this order will be removed.</p>
+    <div class="confirm-actions">
+      <button class="button secondary" @click="clearDialog?.close()">Keep order</button>
+      <button class="button primary" @click="confirmClear">Clear order</button>
+    </div>
+  </dialog>
 </template>
